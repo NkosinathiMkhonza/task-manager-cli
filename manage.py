@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-DR_PATH = os.path.join(os.path.dirname(__file__), "task.db")
+DB_PATH = os.path.join(os.path.dirname(__file__), "task.db")
 
 
 def get_connection():
