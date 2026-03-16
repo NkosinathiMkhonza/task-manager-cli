@@ -1,6 +1,7 @@
 import sqlite3
 import os
 from datetime import datetime
+import argparse
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "tasks.db")
 
@@ -85,5 +86,50 @@ def delete_task(task_id):
 
 init_db()
 
+def build_parser():
+    parser = argparse.ArgumentParser(
+        prog="manage.py",
+        description="Task Manager CLI — manage your tasks from the terminal."
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    # add
+    p_add = subparsers.add_parser("add", help="Add a new task")
+    p_add.add_argument("title", help="Task title")
+    p_add.add_argument(
+        "--priority", choices=["low", "medium", "high"], default="medium",
+        help="Task priority (default: medium)"
+    )
+
+    # list
+    p_list = subparsers.add_parser("list", help="List all tasks")
+    p_list.add_argument(
+        "--status", choices=["pending", "complete"],
+        help="Filter by status"
+    )
+
+    # complete
+    p_complete = subparsers.add_parser("complete", help="Mark a task as complete")
+    p_complete.add_argument("id", type=int, help="Task ID")
+
+    # delete
+    p_delete = subparsers.add_parser("delete", help="Delete a task")
+    p_delete.add_argument("id", type=int, help="Task ID")
+
+    return parser
+
+
 if __name__ == "__main__":
-    print("Database initialized successfully.")
+    parser = build_parser()
+    args = parser.parse_args()
+
+    if args.command == "add":
+        add_task(args.title, args.priority)
+    elif args.command == "list":
+        list_tasks(args.status)
+    elif args.command == "complete":
+        complete_task(args.id)
+    elif args.command == "delete":
+        delete_task(args.id)
+    else:
+        parser.print_help()
