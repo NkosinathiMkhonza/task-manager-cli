@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager CLI</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:      #0d1117;
+            --surface: #161b22;
+            --border:  #30363d;
+            --green:   #3fb950;
+            --blue:    #58a6ff;
+            --muted:   #8b949e;
+            --fg:      #c9d1d9;
+            --red:     #f85149;
+            --yellow:  #e3b341;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: 'JetBrains Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .terminal {
+            width: 100%;
+            max-width: 780px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .terminal-title { font-size: 0.78rem; color: var(--muted); }
+
+        .terminal-body { padding: 24px; }
+
+        /* Task table */
+        .task-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+
+        .task-table th {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 6px 12px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+        }
+
+        .task-table td {
+            padding: 8px 12px;
+            font-size: 0.82rem;
+            border-bottom: 1px solid #21262d;
+        }
+
+        .task-table tr:hover td { background: var(--surface); }
+
+        .status-pending  { color: var(--yellow); }
+        .status-complete { color: var(--green); }
+
+        .priority-high   { color: var(--red); }
+        .priority-medium { color: var(--blue); }
+        .priority-low    { color: var(--muted); }
+
+        .btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-right: 4px;
+        }
+
+        .btn:hover { border-color: var(--green); color: var(--green); }
+        .btn-delete:hover { border-color: var(--red); color: var(--red); }
+
+        /* Input row */
+        .input-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .prompt { color: var(--green); font-size: 0.85rem; margin-right: 4px; }
+
+        .task-input {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--fg);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            outline: none;
+            min-width: 180px;
+        }
+
+        .task-input:focus { border-color: var(--blue); }
+
+        .priority-select {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--fg);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            padding: 8px 10px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .btn-add {
+            background: transparent;
+            border: 1px solid var(--blue);
+            color: var(--blue);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-add:hover { background: var(--blue); color: var(--bg); }
+
+        /* Log output */
+        .log {
+            margin-top: 16px;
+            font-size: 0.78rem;
+            color: var(--green);
+            min-height: 20px;
+        }
+
+        .log.error { color: var(--red); }
+
+        /* Filter tabs */
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .filter-tab {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .filter-tab.active,
+        .filter-tab:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        .empty { color: var(--muted); font-size: 0.82rem; padding: 16px 0; }
+    </style>
+</head>
+<body>
+
+<div class="terminal">
+    <div class="terminal-header">
+        <span class="terminal-title">task-manager-cli — web interface</span>
+        <span style="font-size:0.7rem; color: var(--green)">● running</span>
+    </div>
+
+    <div class="terminal-body">
+
+        <!-- Filter tabs -->
+        <div class="filter-tabs">
+            <button class="filter-tab active" onclick="loadTasks(null, this)">all</button>
+            <button class="filter-tab" onclick="loadTasks('pending', this)">pending</button>
+            <button class="filter-tab" onclick="loadTasks('complete', this)">complete</button>
+        </div>
+
+        <!-- Task list -->
+        <table class="task-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="task-body">
+                <tr><td colspan="6" class="empty">Loading tasks...</td></tr>
+            </tbody>
+        </table>
+
+        <!-- Add task input -->
+        <div class="input-row">
+            <span class="prompt">$</span>
+            <input type="text" class="task-input" id="task-input"
+                placeholder="add task title..." onkeydown="handleEnter(event)">
+            <select class="priority-select" id="priority-select">
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+                <option value="low">low</option>
+            </select>
+            <button class="btn-add" onclick="addTask()">run add →</button>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+</div>
+
+<script>
+    let currentFilter = null;
+
+    async function loadTasks(status, tabEl) {
+        currentFilter = status;
+
+        // Update active tab
+        if (tabEl) {
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            tabEl.classList.add('active');
+        }
+
+        const url = status ? `/api/tasks?status=${status}` : '/api/tasks';
+        const res  = await fetch(url);
+        const tasks = await res.json();
+        renderTasks(tasks);
+    }
+
+    function renderTasks(tasks) {
+        const tbody = document.getElementById('task-body');
+        if (!tasks.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty">No tasks found.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = tasks.map(t => `
+            <tr>
+                <td>${t.id}</td>
+                <td>${t.title}</td>
+                <td class="priority-${t.priority}">${t.priority}</td>
+                <td class="status-${t.status}">${t.status === 'complete' ? '✓ complete' : '○ pending'}</td>
+                <td>${t.created}</td>
+                <td>
+                    ${t.status !== 'complete'
+                        ? `<button class="btn" onclick="completeTask(${t.id})">complete</button>`
+                        : ''}
+                    <button class="btn btn-delete" onclick="deleteTask(${t.id})">delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function addTask() {
+        const input    = document.getElementById('task-input');
+        const priority = document.getElementById('priority-select').value;
+        const title    = input.value.trim();
+        const log      = document.getElementById('log');
+
+        if (!title) {
+            log.textContent = '[!] Title cannot be empty.';
+            log.className   = 'log error';
+            return;
+        }
+
+        const res  = await fetch('/api/tasks', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ title, priority })
+        });
+        const data = await res.json();
+
+        log.textContent = `[+] ${data.message}`;
+        log.className   = 'log';
+        input.value     = '';
+        loadTasks(currentFilter);
+    }
+
+    async function completeTask(id) {
+        const log = document.getElementById('log');
+        const res = await fetch(`/api/tasks/${id}/complete`, { method: 'PATCH' });
+        const data = await res.json();
+        log.textContent = `[✓] ${data.message}`;
+        log.className   = 'log';
+        loadTasks(currentFilter);
+    }
+
+    async function deleteTask(id) {
+        const log = document.getElementById('log');
+        const res = await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        log.textContent = `[-] ${data.message}`;
+        log.className   = 'log';
+        loadTasks(currentFilter);
+    }
+
+    function handleEnter(e) {
+        if (e.key === 'Enter') addTask();
+    }
+
+    // Load on page start
+    loadTasks(null);
+</script>
+
+</body>
+</html>
