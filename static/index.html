@@ -241,42 +241,46 @@
     let currentFilter = null;
 
     async function loadTasks(status, tabEl) {
-        currentFilter = status;
-
-        // Update active tab
-        if (tabEl) {
-            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-            tabEl.classList.add('active');
-        }
-
+    currentFilter = status;
+    if (tabEl) {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        tabEl.classList.add('active');
+    }
+    try {
         const url = status ? `/api/tasks?status=${status}` : '/api/tasks';
-        const res  = await fetch(url);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to fetch');
         const tasks = await res.json();
-        renderTasks(tasks);
+        renderTasks(tasks, status);
+    } catch (err) {
+        document.getElementById('task-body').innerHTML =
+            '<tr><td colspan="6" class="empty">Error loading tasks.</td></tr>';
     }
+}
 
-    function renderTasks(tasks) {
-        const tbody = document.getElementById('task-body');
-        if (!tasks.length) {
-            tbody.innerHTML = '<tr><td colspan="6" class="empty">No tasks found.</td></tr>';
-            return;
-        }
-        tbody.innerHTML = tasks.map(t => `
-            <tr>
-                <td>${t.id}</td>
-                <td>${t.title}</td>
-                <td class="priority-${t.priority}">${t.priority}</td>
-                <td class="status-${t.status}">${t.status === 'complete' ? '✓ complete' : '○ pending'}</td>
-                <td>${t.created}</td>
-                <td>
-                    ${t.status !== 'complete'
-                        ? `<button class="btn" onclick="completeTask(${t.id})">complete</button>`
-                        : ''}
-                    <button class="btn btn-delete" onclick="deleteTask(${t.id})">delete</button>
-                </td>
-            </tr>
-        `).join('');
+function renderTasks(tasks, status) {
+    const tbody = document.getElementById('task-body');
+    const filtered = status ? tasks.filter(t => t.status === status) : tasks;
+    if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">No tasks found.</td></tr>';
+        return;
     }
+    tbody.innerHTML = filtered.map(t => `
+        <tr>
+            <td>${t.id}</td>
+            <td>${t.title}</td>
+            <td class="priority-${t.priority}">${t.priority}</td>
+            <td class="status-${t.status}">${t.status === 'complete' ? '✓ complete' : '○ pending'}</td>
+            <td>${t.created}</td>
+            <td>
+                ${t.status !== 'complete'
+                    ? `<button class="btn" onclick="completeTask(${t.id})">complete</button>`
+                    : ''}
+                <button class="btn btn-delete" onclick="deleteTask(${t.id})">delete</button>
+            </td>
+        </tr>
+    `).join('');
+}
 
     async function addTask() {
         const input    = document.getElementById('task-input');
